@@ -1,18 +1,31 @@
 // Link to GeoJSON
 var APILink = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";
 
+var tectonicLink = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json";
+
 var geojson;
 
 // Perform a GET request to the query URL
-d3.json(APILink, function(data) {
-  // Print out the data features
-  console.log(data.features);
+d3.json(APILink, function(eqData) { 
+  // Perform a GET request to the query URL
+  d3.json(tectonicLink, function(tData) {
+  // Print out the earthquake data features
+  console.log(eqData.features);
 
-  // Once we get a response, send the data.features object to the createFeatures function
-  createFeatures(data.features);
+  // Print out the tectonic data features
+  console.log(tData.features);
+
+  // Once we get a response, send the data.features object to the createEQFeatures function
+  var eq = createEQFeatures(eqData.features);
+
+  // Once we get a response, send the data.features object to the createTFeatures function
+  var tec = createTFeatures(tData.features);
+
+  createMap(eq, tec);
+  });  
 });
 
-function createFeatures(earthquakeData) {
+function createEQFeatures(earthquakeData) {
 
   // Define a function we want to run once for each feature in the features array
   // Give each feature a popup describing the place and time of the earthquake
@@ -48,13 +61,31 @@ function createFeatures(earthquakeData) {
     pointToLayer: style
   });
 
-  
-  
+
   // Sending our earthquakes layer to the createMap function
-  createMap(earthquakes);
+  return earthquakes;
 }
 
-function createMap(earthquakes) {
+function createTFeatures(tectonicData) {
+
+  // Define a function we want to run once for each feature in the features array
+  // Give each feature a popup describing the place and time of the earthquake
+  function onEachFeature(feature, layer) {
+    layer.bindPopup("<h3>" + feature.properties.place +
+      "</h3><hr><p>" + new Date(feature.properties.time) + "</p>")};
+
+  // Create a GeoJSON layer containing the features array on the earthquakeData object
+  // Run the onEachFeature function once for each piece of data in the array 
+  var tectonic = L.geoJSON(tectonicData, {
+    onEachFeature: onEachFeature,
+  });
+
+  // Sending our earthquakes layer to the createMap function
+  return tectonic;
+}
+
+
+function createMap(earthquakes, tectonic) {
 
   // Define lightmap, streetmap and darkmap layers
   var lightmap = L.tileLayer("https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}", {
@@ -87,7 +118,8 @@ function createMap(earthquakes) {
 
   // Create overlay object to hold our overlay layer
   var overlayMaps = {
-    Earthquakes: earthquakes
+    Earthquakes: earthquakes,
+    Faultlines: tectonic
   };
 
   // Create our map, giving it the streetmap and earthquakes layers to display on load
@@ -95,7 +127,7 @@ function createMap(earthquakes) {
     center: [38.5025, -122.2654],
     zoom: 5, // 0 to 24
     maxZoom: 20,
-    layers: [streetmap, earthquakes]
+    layers: [streetmap, earthquakes, tectonic]
   });
 
   // Create a layer control
